@@ -1,6 +1,7 @@
 // Budget Tracking Application
 class BudgetTracker {
     constructor() {
+        this.apiBaseUrl = 'http://localhost:5678';
         this.data = {
             expenses: [],
             income: [],
@@ -30,14 +31,56 @@ class BudgetTracker {
         this.init();
     }
 
-    init() {
-        this.loadData();
+    async init() {
+        await this.loadDataFromAPI();
         this.setupEventListeners();
         this.updateUI();
         this.initializeCharts();
+        this.startAutoSync();
     }
 
     // Data Management
+    async loadDataFromAPI() {
+        try {
+            // Load expenses
+            const expensesResponse = await fetch(`${this.apiBaseUrl}/api/expenses`);
+            if (expensesResponse.ok) {
+                const expenses = await expensesResponse.json();
+                this.data.expenses = expenses.map(expense => ({
+                    id: expense.id,
+                    amount: expense.amount,
+                    category: expense.category,
+                    description: expense.description,
+                    date: expense.date
+                }));
+            }
+
+            // Load income
+            const incomeResponse = await fetch(`${this.apiBaseUrl}/api/income`);
+            if (incomeResponse.ok) {
+                const income = await incomeResponse.json();
+                this.data.income = income.map(inc => ({
+                    id: inc.id,
+                    amount: inc.amount,
+                    category: inc.category,
+                    description: inc.description,
+                    date: inc.date
+                }));
+            }
+
+            // Load budget from localStorage (user-specific)
+            const savedBudget = localStorage.getItem('budgetTrackerBudget');
+            if (savedBudget) {
+                this.data.monthlyBudget = parseFloat(savedBudget);
+            }
+
+        } catch (error) {
+            console.error('Error loading data from API:', error);
+            // Fallback to local storage
+            this.loadData();
+        }
+    }
+
     loadData() {
         const savedData = localStorage.getItem('budgetTrackerData');
         if (savedData) {
@@ -46,8 +89,54 @@ class BudgetTracker {
         }
     }
 
-    saveData() {
-        localStorage.setItem('budgetTrackerData', JSON.stringify(this.data));
+    async saveExpenseToAPI(expense) {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/expenses`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(expense)
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to save expense');
+            }
+        } catch (error) {
+            console.error('Error saving expense to API:', error);
+            throw error;
+        }
+    }
+
+    async saveIncomeToAPI(income) {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/income`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(income)
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to save income');
+            }
+        } catch (error) {
+            console.error('Error saving income to API:', error);
+            throw error;
+        }
+    }
+
+    startAutoSync() {
+        // Auto-sync every 30 seconds
+        setInterval(async () => {
+            try {
+                await this.loadDataFromAPI();
+                this.updateUI();
+            } catch (error) {
+                console.error('Auto-sync error:', error);
+            }
+        }, 30000);
     }
 
     // Event Listeners
@@ -253,36 +342,44 @@ class BudgetTracker {
     }
 
     // Data Operations
-    addExpense() {
+    async addExpense() {
         const expense = {
-            id: Date.now(),
             date: document.getElementById('expenseDate').value,
             category: document.getElementById('expenseCategory').value,
             description: document.getElementById('expenseDescription').value,
             amount: parseFloat(document.getElementById('expenseAmount').value)
         };
 
-        this.data.expenses.push(expense);
-        this.saveData();
-        this.updateUI();
-        this.hideModal(document.getElementById('expenseModal'));
-        this.showMessage('Expense added successfully!', 'success');
+        try {
+            await this.saveExpenseToAPI(expense);
+            // Reload data from API to get the latest data
+            await this.loadDataFromAPI();
+            this.updateUI();
+            this.hideModal(document.getElementById('expenseModal'));
+            this.showMessage('Expense added successfully!', 'success');
+        } catch (error) {
+            this.showMessage('Error adding expense. Please try again.', 'error');
+        }
     }
 
-    addIncome() {
+    async addIncome() {
         const income = {
-            id: Date.now(),
             date: document.getElementById('incomeDate').value,
             category: document.getElementById('incomeCategory').value,
             description: document.getElementById('incomeDescription').value,
             amount: parseFloat(document.getElementById('incomeAmount').value)
         };
 
-        this.data.income.push(income);
-        this.saveData();
-        this.updateUI();
-        this.hideModal(document.getElementById('incomeModal'));
-        this.showMessage('Income added successfully!', 'success');
+        try {
+            await this.saveIncomeToAPI(income);
+            // Reload data from API to get the latest data
+            await this.loadDataFromAPI();
+            this.updateUI();
+            this.hideModal(document.getElementById('incomeModal'));
+            this.showMessage('Income added successfully!', 'success');
+        } catch (error) {
+            this.showMessage('Error adding income. Please try again.', 'error');
+        }
     }
 
     addCategory() {
@@ -427,7 +524,8 @@ class BudgetTracker {
         const budget = parseFloat(document.getElementById('monthlyBudget').value);
         if (budget >= 0) {
             this.data.monthlyBudget = budget;
-            this.saveData();
+            // Save budget to localStorage (user-specific)
+            localStorage.setItem('budgetTrackerBudget', budget.toString());
             this.updateMonthlySummary();
             this.showMessage('Monthly budget updated successfully!', 'success');
         } else {
