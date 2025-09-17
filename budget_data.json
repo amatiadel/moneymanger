@@ -1,24 +1,15 @@
 {
   "expenses": [
     {
-      "id": 1758094483587,
+      "id": 1758096149881,
       "date": "2025-09-17",
       "category": "продукты",
-      "description": "10",
-      "amount": 10,
-      "createdAt": "2025-09-17T07:34:43.587Z"
+      "description": "vc",
+      "amount": 1111,
+      "createdAt": "2025-09-17T08:02:29.881Z"
     }
   ],
-  "income": [
-    {
-      "id": 1758094473391,
-      "date": "2025-09-17",
-      "category": "ЗП Адель",
-      "description": "12",
-      "amount": 12,
-      "createdAt": "2025-09-17T07:34:33.391Z"
-    }
-  ],
+  "income": [],
   "budget": {
     "monthlyBudget": 0
   },
