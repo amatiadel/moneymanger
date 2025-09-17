@@ -32,16 +32,58 @@ class BudgetTracker {
     }
 
     async init() {
-        await this.loadDataFromAPI();
-        this.setupEventListeners();
-        this.updateUI();
-        this.initializeCharts();
-        this.startAutoSync();
+        try {
+            await this.loadDataFromAPI();
+            this.setupEventListeners();
+            this.updateUI();
+            this.initializeCharts();
+            this.startAutoSync();
+        } catch (error) {
+            console.error('Failed to initialize with API:', error);
+            // Show error message and disable functionality
+            this.showMessage('Cannot connect to database. Please start the backend server and refresh the page.', 'error');
+            this.setupEventListeners();
+            // Initialize with empty data
+            this.data = {
+                expenses: [],
+                income: [],
+                monthlyBudget: 0,
+                customDateRange: {
+                    from: null,
+                    to: null
+                },
+                categories: {
+                    expense: [
+                        'ипотека', 'продукты', 'транспорт', 'доставка продуктов', 'доставка готовой еды',
+                        'коммуналка', 'интернет', 'сотовая связь', 'куркур', 'машина', 'заправка',
+                        'маркетплейсы', 'аптека', 'врачи', 'документы', 'развлечения', 'продукты для баловства',
+                        'подарки', 'одежда', 'подписки', 'бытовое для дома', 'косметика', 'Зсд',
+                        'кафе', 'рестораны', 'автокредит', 'кредитная карта', 'кладовка', 'учебный кредит', 'Красота'
+                    ],
+                    income: [
+                        'ЗП Адель', 'ЗП Кристина', 'Tax refund', 'родители Кристины', 'Other',
+                        'доставка', 'подарки', 'ps5', 'кап'
+                    ]
+                }
+            };
+            this.updateUI();
+            this.initializeCharts();
+        }
     }
 
     // Data Management
     async loadDataFromAPI() {
         try {
+            // Check if API server is available
+            const healthCheck = await fetch(`${this.apiBaseUrl}/health`, { 
+                method: 'GET',
+                timeout: 5000 
+            });
+            
+            if (!healthCheck.ok) {
+                throw new Error('API server is not available');
+            }
+
             // Load expenses
             const expensesResponse = await fetch(`${this.apiBaseUrl}/api/expenses`);
             if (expensesResponse.ok) {
@@ -53,6 +95,8 @@ class BudgetTracker {
                     description: expense.description,
                     date: expense.date
                 }));
+            } else {
+                throw new Error('Failed to load expenses from API');
             }
 
             // Load income
@@ -66,28 +110,32 @@ class BudgetTracker {
                     description: inc.description,
                     date: inc.date
                 }));
+            } else {
+                throw new Error('Failed to load income from API');
             }
 
-            // Load budget from localStorage (user-specific)
-            const savedBudget = localStorage.getItem('budgetTrackerBudget');
-            if (savedBudget) {
-                this.data.monthlyBudget = parseFloat(savedBudget);
+            // Load budget from API
+            const budgetResponse = await fetch(`${this.apiBaseUrl}/api/budget`);
+            if (budgetResponse.ok) {
+                const budgetData = await budgetResponse.json();
+                this.data.monthlyBudget = budgetData.monthlyBudget || 0;
+            } else {
+                // If budget API fails, keep current budget or default to 0
+                this.data.monthlyBudget = this.data.monthlyBudget || 0;
             }
+
+            console.log('Data loaded successfully from API');
+            this.showMessage('Connected to shared database', 'success');
 
         } catch (error) {
             console.error('Error loading data from API:', error);
-            // Fallback to local storage
-            this.loadData();
+            this.showMessage('API server unavailable. Please ensure the backend server is running on port 5678', 'error');
+            // Don't fallback to local storage - require API connection
+            throw error;
         }
     }
 
-    loadData() {
-        const savedData = localStorage.getItem('budgetTrackerData');
-        if (savedData) {
-            const parsedData = JSON.parse(savedData);
-            this.data = { ...this.data, ...parsedData };
-        }
-    }
+    // Removed loadData() - now using API only
 
     async saveExpenseToAPI(expense) {
         try {
@@ -128,15 +176,16 @@ class BudgetTracker {
     }
 
     startAutoSync() {
-        // Auto-sync every 30 seconds
+        // Auto-sync every 5 seconds for real-time updates
         setInterval(async () => {
             try {
                 await this.loadDataFromAPI();
                 this.updateUI();
             } catch (error) {
                 console.error('Auto-sync error:', error);
+                // Don't show error message on every sync failure
             }
-        }, 30000);
+        }, 5000);
     }
 
     // Event Listeners
@@ -382,33 +431,74 @@ class BudgetTracker {
         }
     }
 
-    addCategory() {
+    async addCategory() {
         const type = document.getElementById('categoryType').value;
         const name = document.getElementById('categoryName').value;
 
         if (!this.data.categories[type].includes(name)) {
-            this.data.categories[type].push(name);
-            this.saveData();
-            this.updateUI();
-            this.hideModal(document.getElementById('categoryModal'));
-            this.showMessage('Category added successfully!', 'success');
+            try {
+                // Save category to API
+                const response = await fetch(`${this.apiBaseUrl}/api/categories`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ type, name })
+                });
+                
+                if (response.ok) {
+                    this.data.categories[type].push(name);
+                    this.updateUI();
+                    this.hideModal(document.getElementById('categoryModal'));
+                    this.showMessage('Category added successfully!', 'success');
+                } else {
+                    throw new Error('Failed to save category to database');
+                }
+            } catch (error) {
+                console.error('Error saving category:', error);
+                this.showMessage('Error saving category. Please check your connection.', 'error');
+            }
         } else {
             this.showMessage('Category already exists!', 'error');
         }
     }
 
-    deleteExpense(id) {
-        this.data.expenses = this.data.expenses.filter(expense => expense.id !== id);
-        this.saveData();
-        this.updateUI();
-        this.showMessage('Expense deleted successfully!', 'success');
+    async deleteExpense(id) {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/expenses/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                this.data.expenses = this.data.expenses.filter(expense => expense.id !== id);
+                this.updateUI();
+                this.showMessage('Expense deleted successfully!', 'success');
+            } else {
+                throw new Error('Failed to delete expense from database');
+            }
+        } catch (error) {
+            console.error('Error deleting expense:', error);
+            this.showMessage('Error deleting expense. Please check your connection.', 'error');
+        }
     }
 
-    deleteIncome(id) {
-        this.data.income = this.data.income.filter(income => income.id !== id);
-        this.saveData();
-        this.updateUI();
-        this.showMessage('Income deleted successfully!', 'success');
+    async deleteIncome(id) {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/income/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                this.data.income = this.data.income.filter(income => income.id !== id);
+                this.updateUI();
+                this.showMessage('Income deleted successfully!', 'success');
+            } else {
+                throw new Error('Failed to delete income from database');
+            }
+        } catch (error) {
+            console.error('Error deleting income:', error);
+            this.showMessage('Error deleting income. Please check your connection.', 'error');
+        }
     }
 
     // UI Updates
@@ -520,14 +610,30 @@ class BudgetTracker {
         remainingBudgetElement.className = remainingBudget >= 0 ? 'value' : 'value expense';
     }
 
-    setMonthlyBudget() {
+    async setMonthlyBudget() {
         const budget = parseFloat(document.getElementById('monthlyBudget').value);
         if (budget >= 0) {
-            this.data.monthlyBudget = budget;
-            // Save budget to localStorage (user-specific)
-            localStorage.setItem('budgetTrackerBudget', budget.toString());
-            this.updateMonthlySummary();
-            this.showMessage('Monthly budget updated successfully!', 'success');
+            try {
+                // Save budget to API
+                const response = await fetch(`${this.apiBaseUrl}/api/budget`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ monthlyBudget: budget })
+                });
+                
+                if (response.ok) {
+                    this.data.monthlyBudget = budget;
+                    this.updateMonthlySummary();
+                    this.showMessage('Monthly budget updated successfully!', 'success');
+                } else {
+                    throw new Error('Failed to save budget to database');
+                }
+            } catch (error) {
+                console.error('Error saving budget:', error);
+                this.showMessage('Error saving budget. Please check your connection.', 'error');
+            }
         } else {
             this.showMessage('Please enter a valid budget amount.', 'error');
         }
@@ -669,12 +775,28 @@ class BudgetTracker {
         `).join('');
     }
 
-    removeCategory(type, category) {
+    async removeCategory(type, category) {
         if (confirm(`Are you sure you want to remove the category "${category}"?`)) {
-            this.data.categories[type] = this.data.categories[type].filter(cat => cat !== category);
-            this.saveData();
-            this.updateUI();
-            this.showMessage('Category removed successfully!', 'success');
+            try {
+                const response = await fetch(`${this.apiBaseUrl}/api/categories`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ type, name: category })
+                });
+                
+                if (response.ok) {
+                    this.data.categories[type] = this.data.categories[type].filter(cat => cat !== category);
+                    this.updateUI();
+                    this.showMessage('Category removed successfully!', 'success');
+                } else {
+                    throw new Error('Failed to remove category from database');
+                }
+            } catch (error) {
+                console.error('Error removing category:', error);
+                this.showMessage('Error removing category. Please check your connection.', 'error');
+            }
         }
     }
 
@@ -1432,9 +1554,8 @@ class BudgetTracker {
                     try {
                         const importedData = JSON.parse(e.target.result);
                         this.data = { ...this.data, ...importedData };
-                        this.saveData();
-                        this.updateUI();
-                        this.showMessage('Data imported successfully!', 'success');
+                        // Note: Import functionality disabled when using shared database
+                        this.showMessage('Import functionality not available with shared database. Please add data through the interface.', 'error');
                     } catch (error) {
                         this.showMessage('Error importing data. Please check the file format.', 'error');
                     }
@@ -1465,17 +1586,16 @@ class BudgetTracker {
                     ]
                 }
             };
-            this.saveData();
-            this.updateUI();
-            this.showMessage('All data cleared successfully!', 'success');
+            // Note: Clear data functionality disabled when using shared database
+            this.showMessage('Clear data functionality not available with shared database. Please contact administrator.', 'error');
         }
     }
 
     // Utility Functions
     formatCurrency(amount) {
-        return new Intl.NumberFormat('en-US', {
+        return new Intl.NumberFormat('ru-RU', {
             style: 'currency',
-            currency: 'USD'
+            currency: 'RUB'
         }).format(amount);
     }
 
