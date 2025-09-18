@@ -4,12 +4,14 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const PORT = 5678;
+const PORT = process.env.PORT || 3001;
 const DATA_FILE = 'budget_data.json';
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.static('.')); // Serve static files from current directory
 
 // Initialize data file if it doesn't exist
 if (!fs.existsSync(DATA_FILE)) {
@@ -31,7 +33,7 @@ if (!fs.existsSync(DATA_FILE)) {
             ]
         }
     };
-    fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
+    fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2), 'utf8');
 }
 
 // Helper function to read data
@@ -48,7 +50,7 @@ function readData() {
 // Helper function to write data
 function writeData(data) {
     try {
-        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
         return true;
     } catch (error) {
         console.error('Error writing data file:', error);
@@ -64,6 +66,7 @@ app.get('/health', (req, res) => {
 // Get all expenses
 app.get('/api/expenses', (req, res) => {
     const data = readData();
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.json(data.expenses);
 });
 
@@ -102,6 +105,7 @@ app.delete('/api/expenses/:id', (req, res) => {
 // Get all income
 app.get('/api/income', (req, res) => {
     const data = readData();
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.json(data.income);
 });
 
@@ -140,6 +144,7 @@ app.delete('/api/income/:id', (req, res) => {
 // Get budget
 app.get('/api/budget', (req, res) => {
     const data = readData();
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.json(data.budget);
 });
 
@@ -158,6 +163,7 @@ app.post('/api/budget', (req, res) => {
 // Get categories
 app.get('/api/categories', (req, res) => {
     const data = readData();
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.json(data.categories);
 });
 

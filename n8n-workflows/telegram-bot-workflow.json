@@ -1,0 +1,642 @@
+{
+  "name": "Budget Tracker Telegram Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ]
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-credentials",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.message.text }}",
+              "rightValue": "/start",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-start-command",
+      "name": "Check Start Command",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "Привет! 👋 Добро пожаловать в систему учета бюджета!\n\nВыберите тип операции:",
+        "additionalFields": {
+          "replyMarkup": {
+            "inlineKeyboard": [
+              [
+                {
+                  "text": "💰 Доход",
+                  "callbackData": "income"
+                },
+                {
+                  "text": "💸 Расход",
+                  "callbackData": "expense"
+                }
+              ]
+            ]
+          }
+        }
+      },
+      "id": "send-welcome-message",
+      "name": "Send Welcome Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        680,
+        200
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-credentials",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "callback_query"
+        ]
+      },
+      "id": "callback-trigger",
+      "name": "Callback Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        500
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-credentials",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.callback_query.data }}",
+              "rightValue": "income",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-income-callback",
+      "name": "Check Income Callback",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        460,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://budget.amatin8n.ru/api/categories",
+        "options": {}
+      },
+      "id": "get-categories",
+      "name": "Get Categories",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        680,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process categories and create keyboard\nconst categories = $input.first().json;\nconst type = $('Check Income Callback').first().json.callback_query.data;\nconst categoryList = categories[type] || [];\n\n// Create inline keyboard with categories\nconst keyboard = [];\nfor (let i = 0; i < categoryList.length; i += 2) {\n  const row = [];\n  row.push({\n    text: categoryList[i],\n    callback_data: `category_${type}_${categoryList[i]}`\n  });\n  if (categoryList[i + 1]) {\n    row.push({\n      text: categoryList[i + 1],\n      callback_data: `category_${type}_${categoryList[i + 1]}`\n    });\n  }\n  keyboard.push(row);\n}\n\n// Add back button\nkeyboard.push([{\n  text: '⬅️ Назад',\n  callback_data: 'back_to_type'\n}]);\n\nreturn {\n  json: {\n    chatId: $('Check Income Callback').first().json.callback_query.message.chat.id,\n    messageId: $('Check Income Callback').first().json.callback_query.message.message_id,\n    type: type,\n    keyboard: keyboard,\n    categories: categoryList\n  }\n};"
+      },
+      "id": "process-categories",
+      "name": "Process Categories",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "messageId": "={{ $json.messageId }}",
+        "text": "Выберите категорию для {{ $json.type === 'income' ? 'дохода' : 'расхода' }}:",
+        "additionalFields": {
+          "replyMarkup": {
+            "inlineKeyboard": "={{ $json.keyboard }}"
+          }
+        }
+      },
+      "id": "send-categories",
+      "name": "Send Categories",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        400
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-credentials",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.callback_query.data }}",
+              "rightValue": "category_",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-category-selection",
+      "name": "Check Category Selection",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        460,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse category selection\nconst callbackData = $input.first().json.callback_query.data;\nconst parts = callbackData.split('_');\nconst type = parts[1];\nconst category = parts.slice(2).join('_');\n\nreturn {\n  json: {\n    chatId: $input.first().json.callback_query.message.chat.id,\n    messageId: $input.first().json.callback_query.message.message_id,\n    type: type,\n    category: category,\n    userId: $input.first().json.callback_query.from.id,\n    username: $input.first().json.callback_query.from.username || 'Unknown'\n  }\n};"
+      },
+      "id": "parse-category",
+      "name": "Parse Category",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "messageId": "={{ $json.messageId }}",
+        "text": "Введите сумму для категории \"{{ $json.category }}\":\n\n(Используйте только цифры, например: 1500 или 1500.50)"
+      },
+      "id": "ask-amount",
+      "name": "Ask Amount",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        900,
+        700
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-credentials",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ]
+      },
+      "id": "amount-trigger",
+      "name": "Amount Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        900
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-credentials",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate amount input\nconst amountText = $input.first().json.message.text;\nconst amount = parseFloat(amountText.replace(',', '.'));\n\nif (isNaN(amount) || amount <= 0) {\n  return {\n    json: {\n      valid: false,\n      chatId: $input.first().json.message.chat.id,\n      error: 'Пожалуйста, введите корректную сумму (только цифры, больше 0)'\n    }\n  };\n}\n\nreturn {\n  json: {\n    valid: true,\n    amount: amount,\n    chatId: $input.first().json.message.chat.id,\n    userId: $input.first().json.message.from.id,\n    username: $input.first().json.message.from.username || 'Unknown'\n  }\n};"
+      },
+      "id": "validate-amount",
+      "name": "Validate Amount",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-amount-valid",
+      "name": "Check Amount Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        680,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "{{ $json.error }}"
+      },
+      "id": "send-amount-error",
+      "name": "Send Amount Error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        900,
+        1000
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-credentials",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "Введите описание (необязательно):\n\nИли отправьте /skip чтобы пропустить"
+      },
+      "id": "ask-description",
+      "name": "Ask Description",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        900,
+        800
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-credentials",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ]
+      },
+      "id": "description-trigger",
+      "name": "Description Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        1100
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-credentials",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process description input\nconst descriptionText = $input.first().json.message.text;\nconst description = descriptionText === '/skip' ? '' : descriptionText;\n\nreturn {\n  json: {\n    description: description,\n    chatId: $input.first().json.message.chat.id,\n    userId: $input.first().json.message.from.id,\n    username: $input.first().json.message.from.username || 'Unknown'\n  }\n};"
+      },
+      "id": "process-description",
+      "name": "Process Description",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://budget.amatin8n.ru/api/{{ $('Parse Category').first().json.type }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"amount\": {{ $('Validate Amount').first().json.amount }},\n  \"category\": \"{{ $('Parse Category').first().json.category }}\",\n  \"description\": \"{{ $('Process Description').first().json.description }}\",\n  \"addedBy\": \"{{ $('Process Description').first().json.username }}\",\n  \"date\": \"{{ new Date().toISOString().split('T')[0] }}\"\n}",
+        "options": {}
+      },
+      "id": "save-to-database",
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        680,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Process Description').first().json.chatId }}",
+        "text": "✅ {{ $('Parse Category').first().json.type === 'income' ? 'Доход' : 'Расход' }} успешно добавлен!\n\n💰 Сумма: {{ $('Validate Amount').first().json.amount }} ₽\n📂 Категория: {{ $('Parse Category').first().json.category }}\n📝 Описание: {{ $('Process Description').first().json.description || 'Не указано' }}\n👤 Добавил: {{ $('Process Description').first().json.username }}\n📅 Дата: {{ new Date().toLocaleDateString('ru-RU') }}\n\nДля добавления новой записи отправьте /start"
+      },
+      "id": "send-success-message",
+      "name": "Send Success Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        900,
+        1100
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-credentials",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "❌ Ошибка при сохранении данных. Попробуйте еще раз или обратитесь к администратору."
+      },
+      "id": "send-error-message",
+      "name": "Send Error Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        900,
+        1200
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-credentials",
+          "name": "Telegram Bot API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Start Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Start Command": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Income Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Income Callback": {
+      "main": [
+        [
+          {
+            "node": "Get Categories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Categories": {
+      "main": [
+        [
+          {
+            "node": "Process Categories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Categories": {
+      "main": [
+        [
+          {
+            "node": "Send Categories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Category Selection": {
+      "main": [
+        [
+          {
+            "node": "Parse Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Category": {
+      "main": [
+        [
+          {
+            "node": "Ask Amount",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Amount Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate Amount",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Amount": {
+      "main": [
+        [
+          {
+            "node": "Check Amount Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Amount Valid": {
+      "main": [
+        [
+          {
+            "node": "Ask Description",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Amount Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Description Trigger": {
+      "main": [
+        [
+          {
+            "node": "Process Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Description": {
+      "main": [
+        [
+          {
+            "node": "Save to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Database": {
+      "main": [
+        [
+          {
+            "node": "Send Success Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 3,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1"
+}

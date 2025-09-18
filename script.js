@@ -40,7 +40,6 @@ class BudgetTracker {
             this.startAutoSync();
         } catch (error) {
             console.error('Failed to initialize with API:', error);
-            // Show error message and disable functionality
             this.showMessage('Cannot connect to database. Please start the backend server and refresh the page.', 'error');
             this.setupEventListeners();
             // Initialize with empty data
@@ -125,17 +124,13 @@ class BudgetTracker {
             }
 
             console.log('Data loaded successfully from API');
-            this.showMessage('Connected to shared database', 'success');
 
         } catch (error) {
             console.error('Error loading data from API:', error);
             this.showMessage('API server unavailable. Please ensure the backend server is running on port 5678', 'error');
-            // Don't fallback to local storage - require API connection
             throw error;
         }
     }
-
-    // Removed loadData() - now using API only
 
     async saveExpenseToAPI(expense) {
         try {
@@ -188,10 +183,19 @@ class BudgetTracker {
         }, 5000);
     }
 
+
     // Event Listeners
     setupEventListeners() {
         // Navigation
         document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const section = e.currentTarget.dataset.section;
+                this.showSection(section);
+            });
+        });
+
+        // Bottom Navigation (Mobile)
+        document.querySelectorAll('.bottom-nav-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const section = e.currentTarget.dataset.section;
                 this.showSection(section);
@@ -348,14 +352,18 @@ class BudgetTracker {
             section.classList.remove('active');
         });
 
-        // Remove active class from all nav buttons
-        document.querySelectorAll('.nav-btn').forEach(btn => {
+        // Remove active class from all nav buttons (both top and bottom)
+        document.querySelectorAll('.nav-btn, .bottom-nav-btn').forEach(btn => {
             btn.classList.remove('active');
         });
 
         // Show selected section
         document.getElementById(sectionName).classList.add('active');
-        document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
+        
+        // Add active class to both top and bottom nav buttons for the selected section
+        document.querySelectorAll(`[data-section="${sectionName}"]`).forEach(btn => {
+            btn.classList.add('active');
+        });
 
         this.currentSection = sectionName;
 
@@ -949,6 +957,12 @@ class BudgetTracker {
         const ctx = document.getElementById('expensesChart').getContext('2d');
         const { expenses } = this.getFilteredData();
 
+        // Destroy existing chart if it exists
+        if (this.charts.expenses) {
+            this.charts.expenses.destroy();
+            this.charts.expenses = null;
+        }
+
         const categoryTotals = {};
         expenses.forEach(expense => {
             categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
@@ -989,6 +1003,12 @@ class BudgetTracker {
     createIncomeExpensesChart() {
         const ctx = document.getElementById('incomeExpensesChart').getContext('2d');
         const { expenses, income } = this.getFilteredData();
+
+        // Destroy existing chart if it exists
+        if (this.charts.incomeExpenses) {
+            this.charts.incomeExpenses.destroy();
+            this.charts.incomeExpenses = null;
+        }
 
         const monthlyIncome = income.reduce((sum, income) => sum + income.amount, 0);
         const monthlyExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);

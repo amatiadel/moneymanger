@@ -1,17 +1,114 @@
 {
   "expenses": [
     {
-      "id": 1758096149881,
-      "date": "2025-09-17",
+      "id": 1758178301683,
+      "date": "2025-09-18",
       "category": "продукты",
-      "description": "vc",
-      "amount": 1111,
-      "createdAt": "2025-09-17T08:02:29.881Z"
+      "description": "Свежие продукты",
+      "amount": 1200.5,
+      "createdAt": "2025-09-18T06:51:41.683Z"
+    },
+    {
+      "id": 1758178305733,
+      "date": "2025-09-18",
+      "category": "транспорт",
+      "description": "Метро и автобус",
+      "amount": 350,
+      "createdAt": "2025-09-18T06:51:45.733Z"
+    },
+    {
+      "id": 1758178310409,
+      "date": "2025-09-18",
+      "category": "кафе",
+      "description": "Обед в ресторане",
+      "amount": 850,
+      "createdAt": "2025-09-18T06:51:50.409Z"
+    },
+    {
+      "id": 1758178315486,
+      "date": "2025-09-18",
+      "category": "развлечения",
+      "description": "Кино и игры",
+      "amount": 1200,
+      "createdAt": "2025-09-18T06:51:55.486Z"
+    },
+    {
+      "id": 1758181405958,
+      "date": "2025-09-18",
+      "category": "одежда",
+      "description": "",
+      "amount": 44,
+      "createdAt": "2025-09-18T07:43:25.958Z"
+    },
+    {
+      "id": 1758181926406,
+      "date": "2025-09-18",
+      "category": "куркур",
+      "description": "",
+      "amount": 2500,
+      "createdAt": "2025-09-18T07:52:06.406Z"
+    },
+    {
+      "id": 1758184243624,
+      "date": "2025-09-18",
+      "category": "Зсд",
+      "description": "",
+      "amount": 1000,
+      "createdAt": "2025-09-18T08:30:43.624Z"
     }
   ],
-  "income": [],
+  "income": [
+    {
+      "id": 1758178320021,
+      "date": "2025-09-18",
+      "category": "ЗП Адель",
+      "description": "Зарплата за сентябрь",
+      "amount": 45000,
+      "createdAt": "2025-09-18T06:52:00.021Z"
+    },
+    {
+      "id": 1758178324127,
+      "date": "2025-09-18",
+      "category": "ЗП Кристина",
+      "description": "Зарплата Кристины",
+      "amount": 38000,
+      "createdAt": "2025-09-18T06:52:04.127Z"
+    },
+    {
+      "id": 1758178328065,
+      "date": "2025-09-18",
+      "category": "подарки",
+      "description": "Деньги на подарки",
+      "amount": 5000,
+      "createdAt": "2025-09-18T06:52:08.065Z"
+    },
+    {
+      "id": 1758181383748,
+      "date": "2025-09-18",
+      "category": "ЗП Адель",
+      "description": "",
+      "amount": 12,
+      "createdAt": "2025-09-18T07:43:03.748Z"
+    },
+    {
+      "id": 1758186397267,
+      "date": "2025-09-18",
+      "category": "Tax refund",
+      "description": "10",
+      "amount": 100,
+      "createdAt": "2025-09-18T09:06:37.267Z"
+    },
+    {
+      "id": 1758186407445,
+      "date": "2025-09-18",
+      "category": "ЗП Адель",
+      "description": "1552",
+      "amount": 10000,
+      "createdAt": "2025-09-18T09:06:47.445Z"
+    }
+  ],
   "budget": {
-    "monthlyBudget": 0
+    "monthlyBudget": 50000
   },
   "categories": {
     "expense": [
